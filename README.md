@@ -166,6 +166,12 @@ TypeError: grid_sample() got an unexpected keyword argument 'align_corners'
 ) -> Tensor
 ...
 align_corners : bool, optional
-Geometrically, we consider the pixels of the input as squares rather than points. If set to True, the extrema (-1 and 1) are considered as referring to the center points of the input's corner pixels. If set to False, they are instead considered as referring to the corner points of the input's corner pixels, making the sampling more resolution agnostic. This option parallels the align_corners option in interpolate, and so whichever option is used here should also be used there to resize the input image before grid sampling. Default: False
+Geometrically, we consider the pixels of the input as squares rather than points.
+If set to True, the extrema (-1 and 1) are considered as referring to the center
+points of the input's corner pixels. If set to False, they are instead considered
+as referring to the corner points of the input's corner pixels, making the sampling
+more resolution agnostic. This option parallels the align_corners option in interpolate,
+and so whichever option is used here should also be used there to resize the input
+image before grid sampling. Default: False
 ...
 ```
