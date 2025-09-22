@@ -1,4 +1,4 @@
-# Image-Adaptive-3DLUT
+# Chạy thử Image-Adaptive-3DLUT
 Nhật ký cài đặt và chạy thử [Image-Adaptive-3DLUT](github.com/HuiZeng/Image-Adaptive-3DLUT)
 
 ## Yêu cầu
@@ -55,12 +55,58 @@ Cho `pythorch 1.x` cần làm
 cd trilinear_cpp
 sh setup.sh
 ```
-Sửa các dòng trong file `demo_eval.py`
+Một số vấn đề:
+- Chưa cài đặt CUDA Toolkit
+- Chưa xét `CUDA_HOME` đúng thư mục
+
+### Cài đặt CUDA Toolkit
+Trên Ubuntu 22.04
+```
+sudo apt update
+sudo apt install -y nvidia-cuda-toolkit
+```
+Kiểm tra phiên bản
+```
+nvcc --version
+```
+
+### Xét biến môi trường `CUDA_HOME`
+Tìm đường đẫn
+```
+which nvcc
+```
+Ví dụ đầu ra
+```
+/usr/bin/nvcc
+```
+In nội dung file đó
+```
+cat /usr/bin/nvcc
+```
+Ví dụ đầu ra
+```
+#!/bin/sh
+
+exec /usr/lib/nvidia-cuda-toolkit/bin/nvcc "$@"
+```
+Sửa file `setup.sh` để xét `CUDA_HOME` thành thư mục tương ứng
+```
+export CUDA_HOME=/usr/local/cuda-10.2 && python3 setup.py install ==>
+export CUDA_HOME=/usr/lib/nvidia-cuda-toolkit && python3 setup.py install
+```
+**Chú ý** `CUDA_HOME` là thư mục gốc chứa CUDA Toolkit.
+
+## Bước 3: Chạy ví dụ
+Sửa các dòng trong file `demo_eval.py` vì sử dụng phiên bản `pytorch 1.x`
 ```
 from models import * ==> from models_x import *
 result = trilinear_(LUT, img) ==> _, result = trilinear_(LUT, img)
 ```
-
+Chạy ví dụ
+```
+python demo_eval.py
+```
+Lỗi khi chạy
 ```
 python demo_eval.py
 /home/pkdat/Image-Adaptive-3DLUT/models_x.py:153: UserWarning: To copy construct from a tensor, it is recommended to use sourceTensor.clone().detach() or sourceTensor.clone().detach().requires_grad_(True), rather than torch.tensor(sourceTensor).
@@ -71,20 +117,31 @@ python demo_eval.py
   "See the documentation of nn.Upsample for details.".format(mode))
 Segmentation fault (core dumped)
 ```
+Em không rõ lỗi ở đây là gì, nhưng hình như có 1 Issue liên quan
+> Replace the trilinear interpolation with torch.nn.functional.grid_sample [#14](https://github.com/HuiZeng/Image-Adaptive-3DLUT/issues/14)
 
+Cách sử lỗi trong hướng dẫn là thay dòng
 ```
-/home/pkdat/Image-Adaptive-3DLUT/models_x.py:153: UserWarning: To copy construct from a tensor, it is recommended to use sourceTensor.clone().detach() or sourceTensor.clone().detach().requires_grad_(True), rather than torch.tensor(sourceTensor).
-  self.LUT = nn.Parameter(torch.tensor(self.LUT))
-/home/pkdat/miniconda3/envs/envpy36/lib/python3.6/site-packages/torch/nn/modules/upsampling.py:129: UserWarning: nn.Upsample is deprecated. Use nn.functional.interpolate instead.
-  warnings.warn("nn.{} is deprecated. Use nn.functional.interpolate instead.".format(self.name))
-/home/pkdat/miniconda3/envs/envpy36/lib/python3.6/site-packages/torch/nn/functional.py:2423: UserWarning: Default upsampling behavior when mode=bilinear is changed to align_corners=False since 0.4.0. Please specify align_corners=True if the old behavior is desired. See the documentation of nn.Upsample for details.
-  "See the documentation of nn.Upsample for details.".format(mode))
-Traceback (most recent call last):
-  File "demo_eval.py", line 98, in <module>
-    result = F.grid_sample(LUT, img, mode='bilinear', padding_mode='border', align_corners=True)
-TypeError: grid_sample() got an unexpected keyword argument 'align_corners'
+_, result = trilinear_(LUT, img)
 ```
+thành
+```
+# scale im between -1 and 1 since its used as grid input in grid_sample
+img = (img - .5) * 2.
 
+# grid_sample expects NxDxHxWx3 (1x1xHxWx3)
+img = img.permute(0, 2, 3, 1)[:, None]
+
+# add batch dim to LUT
+LUT = LUT[None]
+
+# grid sample
+result = F.grid_sample(LUT, img, mode='bilinear', padding_mode='border', align_corners=True)
+
+# drop added dimensions and permute back
+result = result[:, :, 0].permute(0, 2, 3, 1)
+```
+Tuy nhiên sau khi chạy, vẫn bị lỗi tiếp
 ```
 python demo_eval.py 
 /home/pkdat/Image-Adaptive-3DLUT/models_x.py:153: UserWarning: To copy construct from a tensor, it is recommended to use sourceTensor.clone().detach() or sourceTensor.clone().detach().requires_grad_(True), rather than torch.tensor(sourceTensor).
@@ -97,4 +154,18 @@ Traceback (most recent call last):
   File "demo_eval.py", line 98, in <module>
     result = F.grid_sample(LUT, img, mode='bilinear', padding_mode='border', align_corners=True)
 TypeError: grid_sample() got an unexpected keyword argument 'align_corners'
+```
+Ở đây nó nói hàm `grid_sample() không có đối số `align_corners` nhưng trong tài liệu vẫn có đối số này
+```
+(function) def grid_sample(
+    input: Tensor,
+    grid: Tensor,
+    mode: str = ...,
+    padding_mode: str = ...,
+    align_corners: Any | None = ...
+) -> Tensor
+...
+align_corners : bool, optional
+Geometrically, we consider the pixels of the input as squares rather than points. If set to True, the extrema (-1 and 1) are considered as referring to the center points of the input's corner pixels. If set to False, they are instead considered as referring to the corner points of the input's corner pixels, making the sampling more resolution agnostic. This option parallels the align_corners option in interpolate, and so whichever option is used here should also be used there to resize the input image before grid sampling. Default: False
+...
 ```
