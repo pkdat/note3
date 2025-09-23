@@ -155,7 +155,7 @@ Traceback (most recent call last):
     result = F.grid_sample(LUT, img, mode='bilinear', padding_mode='border', align_corners=True)
 TypeError: grid_sample() got an unexpected keyword argument 'align_corners'
 ```
-Ở đây nó nói hàm `grid_sample() không có đối số `align_corners` nhưng em xem trong tài liệu vẫn có đối số này.
+Ở đây nó nói hàm `grid_sample()` không có đối số `align_corners` nhưng em xem trong tài liệu vẫn có đối số này.
 ```
 (function) def grid_sample(
     input: Tensor,
