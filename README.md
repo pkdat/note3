@@ -1,5 +1,5 @@
 # Chạy thử Image-Adaptive-3DLUT
-Nhật ký cài đặt và chạy thử [Image-Adaptive-3DLUT](github.com/HuiZeng/Image-Adaptive-3DLUT)
+Nhật ký cài đặt và chạy thử [Image-Adaptive-3DLUT](https://github.com/HuiZeng/Image-Adaptive-3DLUT)
 
 ## Yêu cầu
 - Sử dụng hệ điều hành Linux
